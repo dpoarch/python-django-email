@@ -1,0 +1,41 @@
+version: "3.8"
+services:
+  app:
+    build: ./backend
+    container_name: email_app
+    command: sh -c "python manage.py makemigrations &&
+      python manage.py migrate &&
+      gunicorn mysite.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+  nginx:
+    build: ./nginx
+    container_name: email_nginx
+    volumes:
+      - ./backend/static:/app/static
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+  db:
+    image: postgres:13.2
+    container_name: email_db
+    environment:
+      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./database/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - ./database/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./database/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    ports:
+      - "5432:5432"
+
+volumes:
+  pg_data:
